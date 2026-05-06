@@ -6,7 +6,8 @@ const {
 } = require("@whiskeysockets/baileys");
 
 const P = require("pino");
-const qrcode = require("qrcode-terminal");
+
+let currentQR = null; // 👈 store QR globally
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./session");
@@ -17,30 +18,27 @@ async function startBot() {
     auth: state,
     printQRInTerminal: false,
     logger: P({ level: "silent" }),
-    browser: ["Windows", "Chrome", "120"]
+    browser: ["Railway", "Chrome", "120"]
   });
 
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      console.log("\n📌 SCAN THIS QR:\n");
-      qrcode.generate(qr, { small: true });
+      console.log("📌 QR GENERATED");
+      currentQR = qr; // 👈 SAVE QR
     }
 
     if (connection === "open") {
       console.log("✅ WhatsApp Connected!");
-
-      await sock.sendMessage("923172496394@s.whatsapp.net", {
-        text: "Hello from Baileys 🚀"
-      });
+      currentQR = null;
     }
 
     if (connection === "close") {
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      const shouldReconnect =
+        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
 
-      console.log("❌ Connection closed:", statusCode);
+      console.log("❌ Connection closed");
 
       if (shouldReconnect) {
         setTimeout(startBot, 3000);
@@ -52,3 +50,8 @@ async function startBot() {
 }
 
 startBot();
+
+// 👇 EXPORT QR
+module.exports = {
+  getQR: () => currentQR
+};
